@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0a1628">
+<title>Laadtracker</title>
+<style>
+  :root {
+    --bg: #0a1628;
+    --surface: #111d35;
+    --card: #172040;
+    --border: rgba(255,255,255,0.08);
+    --accent: #4a9eff;
+    --accent2: #2dd4a0;
+    --text: #f0f4ff;
+    --muted: #7a8fb5;
+    --danger: #ff6b6b;
+    --warn: #ffb347;
+    --green: #2dd4a0;
+    --radius: 14px;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bot: env(safe-area-inset-bottom, 0px);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, 'Segoe UI', sans-serif; min-height: 100vh; overflow-x: hidden; }
+
+  .statusbar { height: var(--safe-top); background: var(--bg); }
+  .header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px 12px; background: var(--bg); position: sticky; top: 0; z-index: 100; border-bottom: 1px solid var(--border); }
+  .header h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.5px; }
+  .header-icon { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; }
+  .bolt { font-size: 22px; }
+
+  .content { padding: 16px 16px calc(80px + var(--safe-bot)); }
+
+  .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+  .stat-card { background: var(--card); border-radius: var(--radius); padding: 14px 16px; border: 1px solid var(--border); }
+  .stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .stat-value { font-size: 26px; font-weight: 700; line-height: 1; }
+  .stat-unit { font-size: 11px; color: var(--muted); margin-top: 3px; }
+  .stat-accent { color: var(--accent); }
+  .stat-green { color: var(--green); }
+
+  .section-title { font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; margin-top: 4px; }
+
+  .session-card { background: var(--card); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 10px; border: 1px solid var(--border); position: relative; }
+  .session-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+  .session-date { font-size: 15px; font-weight: 600; }
+  .session-loc { font-size: 13px; color: var(--muted); margin-top: 2px; }
+  .badge { font-size: 11px; padding: 3px 10px; border-radius: 99px; font-weight: 600; }
+  .badge-thuis { background: rgba(45,212,160,0.15); color: var(--green); }
+  .badge-werk { background: rgba(74,158,255,0.15); color: var(--accent); }
+  .badge-publiek { background: rgba(255,179,71,0.15); color: var(--warn); }
+  .session-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .session-stat { text-align: center; background: rgba(255,255,255,0.04); border-radius: 8px; padding: 8px 4px; }
+  .session-stat-val { font-size: 15px; font-weight: 600; }
+  .session-stat-label { font-size: 10px; color: var(--muted); margin-top: 2px; }
+  .battery-bar { margin-top: 10px; }
+  .battery-track { background: rgba(255,255,255,0.08); border-radius: 99px; height: 6px; position: relative; overflow: hidden; }
+  .battery-fill { height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--accent), var(--green)); position: absolute; }
+  .battery-labels { display: flex; justify-content: space-between; margin-top: 4px; }
+  .battery-label { font-size: 10px; color: var(--muted); }
+  .del-btn { position: absolute; top: 12px; right: 12px; width: 26px; height: 26px; border-radius: 50%; background: rgba(255,107,107,0.1); border: none; color: var(--danger); font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+
+  .empty { text-align: center; padding: 40px 20px; color: var(--muted); font-size: 15px; }
+  .empty-icon { font-size: 40px; margin-bottom: 10px; }
+
+  /* Bottom nav */
+  .bottomnav { position: fixed; bottom: 0; left: 0; right: 0; background: var(--surface); border-top: 1px solid var(--border); display: flex; padding-bottom: var(--safe-bot); z-index: 200; }
+  .nav-btn { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 10px 0 8px; font-size: 10px; color: var(--muted); background: none; border: none; cursor: pointer; gap: 4px; transition: color 0.15s; }
+  .nav-btn.active { color: var(--accent); }
+  .nav-icon { font-size: 20px; line-height: 1; }
+
+  /* Pages */
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* Form */
+  .form-card { background: var(--card); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; border: 1px solid var(--border); }
+  .form-title { font-size: 14px; font-weight: 600; margin-bottom: 14px; color: var(--accent); }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+  .form-row.full { grid-template-columns: 1fr; }
+  .form-group { display: flex; flex-direction: column; gap: 5px; }
+  .form-group label { font-size: 12px; color: var(--muted); }
+  .form-group input, .form-group select {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-size: 15px;
+    padding: 10px 12px;
+    font-family: inherit;
+    width: 100%;
+    -webkit-appearance: none;
+  }
+  .form-group input:focus, .form-group select:focus { outline: none; border-color: var(--accent); background: rgba(74,158,255,0.08); }
+  .form-group select option { background: #172040; }
+  .save-btn { width: 100%; padding: 14px; background: var(--accent); color: white; border: none; border-radius: var(--radius); font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 4px; transition: opacity 0.15s; }
+  .save-btn:active { opacity: 0.8; }
+  .calc-hint { font-size: 12px; color: var(--green); margin-top: 6px; background: rgba(45,212,160,0.1); padding: 8px 10px; border-radius: 8px; }
+  .toast { position: fixed; top: calc(var(--safe-top) + 60px); left: 50%; transform: translateX(-50%); background: var(--green); color: #0a1628; font-weight: 700; font-size: 14px; padding: 10px 20px; border-radius: 99px; z-index: 999; opacity: 0; transition: opacity 0.2s; pointer-events: none; white-space: nowrap; }
+  .toast.show { opacity: 1; }
+
+  /* Chart page */
+  .chart-container { background: var(--card); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; border: 1px solid var(--border); }
+  .chart-inner { display: flex; align-items: flex-end; gap: 8px; height: 120px; margin-top: 10px; }
+  .chart-bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .chart-bar { width: 100%; border-radius: 5px 5px 0 0; background: var(--accent); min-height: 3px; transition: height 0.4s; }
+  .chart-bar-label { font-size: 10px; color: var(--muted); }
+  .chart-bar-val { font-size: 10px; color: var(--text); font-weight: 600; }
+  .type-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .type-label { font-size: 13px; width: 60px; color: var(--muted); }
+  .type-track { flex: 1; background: rgba(255,255,255,0.06); border-radius: 99px; height: 18px; overflow: hidden; }
+  .type-fill { height: 100%; border-radius: 99px; display: flex; align-items: center; padding-left: 8px; font-size: 11px; font-weight: 600; min-width: 3px; }
+  .type-cost { font-size: 13px; font-weight: 600; min-width: 52px; text-align: right; }
+</style>
+</head>
+<body>
+<div class="statusbar"></div>
+<div class="header">
+  <div class="header-icon"><span class="bolt">⚡</span></div>
+  <h1>Laadtracker</h1>
+  <div style="width:28px"></div>
+</div>
+
+<div class="content">
+
+  <!-- HOME PAGE -->
+  <div class="page active" id="page-home">
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-label">Totaal kWh</div><div class="stat-value stat-accent" id="s-kwh">0</div><div class="stat-unit">kilowattuur</div></div>
+      <div class="stat-card"><div class="stat-label">Totale kosten</div><div class="stat-value stat-green" id="s-cost">€0</div><div class="stat-unit">euro</div></div>
+      <div class="stat-card"><div class="stat-label">Sessies</div><div class="stat-value" id="s-count">0</div><div class="stat-unit">totaal</div></div>
+      <div class="stat-card"><div class="stat-label">Gem. tarief</div><div class="stat-value" id="s-avg">—</div><div class="stat-unit">€/kWh</div></div>
+    </div>
+    <div class="section-title">Recente sessies</div>
+    <div id="sessions-list"></div>
+  </div>
+
+  <!-- ADD PAGE -->
+  <div class="page" id="page-add">
+    <div class="form-card">
+      <div class="form-title">⚡ Nieuwe laadsessie</div>
+      <div class="form-row">
+        <div class="form-group"><label>Datum</label><input type="date" id="f-date"></div>
+        <div class="form-group"><label>Type</label>
+          <select id="f-type">
+            <option value="thuis">🏠 Thuis</option>
+            <option value="werk">🏢 Werk</option>
+            <option value="publiek">🔌 Publiek</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row full">
+        <div class="form-group"><label>Locatienaam</label><input type="text" id="f-loc" placeholder="bijv. Thuis, FastNed A2..."></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>🔋 Batterij start %</label><input type="number" id="f-soc-start" placeholder="bijv. 20" min="0" max="100" step="1"></div>
+        <div class="form-group"><label>🔋 Batterij einde %</label><input type="number" id="f-soc-end" placeholder="bijv. 80" min="0" max="100" step="1"></div>
+      </div>
+      <div id="kwh-calc-hint" class="calc-hint" style="display:none"></div>
+      <div class="form-row">
+        <div class="form-group"><label>Geladen kWh</label><input type="number" id="f-kwh" placeholder="auto of handmatig" step="0.1" min="0"></div>
+        <div class="form-group"><label>Tarief (€/kWh)</label><input type="number" id="f-rate" placeholder="bijv. 0.29" step="0.01" min="0"></div>
+      </div>
+      <div class="form-row full">
+        <div class="form-group"><label>Totale kosten (€) — optioneel</label><input type="number" id="f-cost" placeholder="of laat berekenen" step="0.01" min="0"></div>
+      </div>
+      <button class="save-btn" onclick="addSession()">Sessie opslaan</button>
+    </div>
+  </div>
+
+  <!-- STATS PAGE -->
+  <div class="page" id="page-stats">
+    <div class="section-title">kWh per maand</div>
+    <div class="chart-container">
+      <div class="chart-inner" id="month-chart"><div style="color:var(--muted);font-size:13px;align-self:center;width:100%;text-align:center">Nog geen data</div></div>
+    </div>
+    <div class="section-title">Kosten per type</div>
+    <div class="chart-container" id="type-chart-wrap">
+      <div style="color:var(--muted);font-size:13px;text-align:center;padding:10px">Nog geen data</div>
+    </div>
+    <div class="section-title">Gemiddelde laadsnelheid</div>
+    <div class="chart-container">
+      <div id="avg-stats" style="color:var(--muted);font-size:13px;text-align:center;padding:10px">Nog geen data</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Bottom Nav -->
+<div class="bottomnav">
+  <button class="nav-btn active" id="nav-home" onclick="gotoPage('home')"><span class="nav-icon">🏠</span>Overzicht</button>
+  <button class="nav-btn" id="nav-add" onclick="gotoPage('add')"><span class="nav-icon">➕</span>Toevoegen</button>
+  <button class="nav-btn" id="nav-stats" onclick="gotoPage('stats')"><span class="nav-icon">📊</span>Statistieken</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const ACCU_KWH = 64;
+const MONTHS = ['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
+
+let sessions = JSON.parse(localStorage.getItem('laadtracker') || '[]');
+
+function save() { localStorage.setItem('laadtracker', JSON.stringify(sessions)); }
+
+function gotoPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  document.getElementById('nav-' + name).classList.add('active');
+  if (name === 'stats') renderStats();
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+function setToday() {
+  const d = new Date();
+  const p = n => String(n).padStart(2,'0');
+  document.getElementById('f-date').value = `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;
+}
+
+// Auto-calc kWh from SOC
+function updateCalcHint() {
+  const start = parseFloat(document.getElementById('f-soc-start').value);
+  const end = parseFloat(document.getElementById('f-soc-end').value);
+  const hint = document.getElementById('kwh-calc-hint');
+  if (!isNaN(start) && !isNaN(end) && end > start) {
+    const kwh = Math.round((end - start) / 100 * ACCU_KWH * 10) / 10;
+    hint.textContent = `Geschatte lading: ${kwh} kWh (${end - start}% van ${ACCU_KWH} kWh accu)`;
+    hint.style.display = 'block';
+    if (!document.getElementById('f-kwh').value) {
+      document.getElementById('f-kwh').value = kwh;
+    }
+  } else {
+    hint.style.display = 'none';
+  }
+}
+
+document.getElementById('f-soc-start').addEventListener('input', updateCalcHint);
+document.getElementById('f-soc-end').addEventListener('input', updateCalcHint);
+
+function addSession() {
+  const date = document.getElementById('f-date').value;
+  const type = document.getElementById('f-type').value;
+  const loc = document.getElementById('f-loc').value.trim() || (type === 'thuis' ? 'Thuis' : type === 'werk' ? 'Werk' : 'Publieke lader');
+  const socStart = parseFloat(document.getElementById('f-soc-start').value) || null;
+  const socEnd = parseFloat(document.getElementById('f-soc-end').value) || null;
+  let kwh = parseFloat(document.getElementById('f-kwh').value);
+  const rate = parseFloat(document.getElementById('f-rate').value);
+  const costIn = parseFloat(document.getElementById('f-cost').value);
+
+  if (!date) { showToast('⚠️ Vul een datum in'); return; }
+  if (isNaN(kwh) && socStart !== null && socEnd !== null && socEnd > socStart) {
+    kwh = Math.round((socEnd - socStart) / 100 * ACCU_KWH * 10) / 10;
+  }
+  if (isNaN(kwh) || kwh <= 0) { showToast('⚠️ Vul kWh of batterij% in'); return; }
+
+  let cost = costIn;
+  if (isNaN(cost) && !isNaN(rate)) cost = Math.round(kwh * rate * 100) / 100;
+  if (isNaN(cost)) cost = 0;
+
+  sessions.unshift({ id: Date.now(), date, type, loc, socStart, socEnd, kwh: Math.round(kwh*100)/100, rate: isNaN(rate)?null:rate, cost });
+  save();
+  renderHome();
+  showToast('✓ Sessie opgeslagen!');
+  clearForm();
+  gotoPage('home');
+}
+
+function clearForm() {
+  ['f-loc','f-kwh','f-rate','f-cost','f-soc-start','f-soc-end'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('f-type').value = 'thuis';
+  document.getElementById('kwh-calc-hint').style.display = 'none';
+  setToday();
+}
+
+function deleteSession(id) {
+  if (!confirm('Sessie verwijderen?')) return;
+  sessions = sessions.filter(s => s.id !== id);
+  save();
+  renderHome();
+  renderStats();
+}
+
+function fmtDate(str) {
+  const [y,m,d] = str.split('-');
+  return `${d}-${m}-${y}`;
+}
+
+function renderHome() {
+  const totalKwh = Math.round(sessions.reduce((a,s)=>a+s.kwh,0)*10)/10;
+  const totalCost = sessions.reduce((a,s)=>a+s.cost,0);
+  const avg = totalKwh > 0 && totalCost > 0 ? (totalCost/totalKwh).toFixed(2) : null;
+  document.getElementById('s-kwh').textContent = totalKwh;
+  document.getElementById('s-cost').textContent = '€' + totalCost.toFixed(2);
+  document.getElementById('s-count').textContent = sessions.length;
+  document.getElementById('s-avg').textContent = avg ? '€' + avg : '—';
+
+  const el = document.getElementById('sessions-list');
+  if (!sessions.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">⚡</div>Nog geen laadsessies.<br>Tik op + om te beginnen.</div>';
+    return;
+  }
+  el.innerHTML = sessions.map(s => {
+    const socBar = s.socStart !== null && s.socEnd !== null ? `
+      <div class="battery-bar">
+        <div class="battery-track">
+          <div class="battery-fill" style="left:${s.socStart}%;width:${s.socEnd - s.socStart}%;"></div>
+        </div>
+        <div class="battery-labels">
+          <span class="battery-label">${s.socStart}%</span>
+          <span class="battery-label" style="color:var(--green)">${s.socEnd}%</span>
+        </div>
+      </div>` : '';
+    return `<div class="session-card">
+      <button class="del-btn" onclick="deleteSession(${s.id})">✕</button>
+      <div class="session-header">
+        <div><div class="session-date">${fmtDate(s.date)}</div><div class="session-loc">${s.loc}</div></div>
+        <span class="badge badge-${s.type}">${s.type}</span>
+      </div>
+      <div class="session-stats">
+        <div class="session-stat"><div class="session-stat-val" style="color:var(--accent)">${s.kwh}</div><div class="session-stat-label">kWh</div></div>
+        <div class="session-stat"><div class="session-stat-val" style="color:var(--green)">${s.cost > 0 ? '€'+s.cost.toFixed(2) : '—'}</div><div class="session-stat-label">kosten</div></div>
+        <div class="session-stat"><div class="session-stat-val">${s.rate ? '€'+s.rate.toFixed(2) : '—'}</div><div class="session-stat-label">€/kWh</div></div>
+      </div>
+      ${socBar}
+    </div>`;
+  }).join('');
+}
+
+function renderStats() {
+  if (!sessions.length) return;
+  // Monthly chart
+  const map = {};
+  sessions.forEach(s => {
+    const [y,m] = s.date.split('-');
+    const key = `${y}-${m}`;
+    map[key] = (map[key]||0) + s.kwh;
+  });
+  const keys = Object.keys(map).sort().slice(-8);
+  const vals = keys.map(k => map[k]);
+  const max = Math.max(...vals, 1);
+  const el = document.getElementById('month-chart');
+  el.innerHTML = keys.map((k,i) => {
+    const [y,m] = k.split('-');
+    const h = Math.round(vals[i]/max*110);
+    return `<div class="chart-bar-wrap">
+      <div class="chart-bar-val">${Math.round(vals[i])}</div>
+      <div class="chart-bar" style="height:${h}px;"></div>
+      <div class="chart-bar-label">${MONTHS[parseInt(m)-1]}</div>
+    </div>`;
+  }).join('');
+
+  // Type chart
+  const types = ['thuis','werk','publiek'];
+  const colors = { thuis: 'var(--green)', werk: 'var(--accent)', publiek: 'var(--warn)' };
+  const labels = { thuis: '🏠 Thuis', werk: '🏢 Werk', publiek: '🔌 Publiek' };
+  const totals = {};
+  types.forEach(t => totals[t] = sessions.filter(s=>s.type===t).reduce((a,s)=>a+s.cost,0));
+  const maxCost = Math.max(...Object.values(totals), 0.01);
+  document.getElementById('type-chart-wrap').innerHTML = types.map(t => `
+    <div class="type-row">
+      <span class="type-label">${labels[t]}</span>
+      <div class="type-track"><div class="type-fill" style="width:${Math.max(Math.round(totals[t]/maxCost*100),2)}%;background:${colors[t]};color:#0a1628">
+        ${totals[t] > 0.5 ? '' : ''}</div></div>
+      <span class="type-cost" style="color:${colors[t]}">€${totals[t].toFixed(2)}</span>
+    </div>`).join('');
+
+  // Avg stats
+  const withSoc = sessions.filter(s => s.socStart !== null && s.socEnd !== null && s.socEnd > s.socStart);
+  const avgKwh = sessions.reduce((a,s)=>a+s.kwh,0)/sessions.length;
+  document.getElementById('avg-stats').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;text-align:center">
+      <div><div style="font-size:20px;font-weight:700;color:var(--accent)">${Math.round(avgKwh*10)/10}</div><div style="font-size:11px;color:var(--muted);margin-top:3px">gem. kWh/sessie</div></div>
+      <div><div style="font-size:20px;font-weight:700;color:var(--green)">${withSoc.length}</div><div style="font-size:11px;color:var(--muted);margin-top:3px">met accu%</div></div>
+    </div>`;
+}
+
+setToday();
+renderHome();
+</script>
+</body>
+</html>
